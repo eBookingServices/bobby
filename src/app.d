@@ -253,7 +253,7 @@ int main(string[] args) {
 		return 1;
 	}
 
-    app_ = App(args[1], args[1..$], workingDir, stdoutFile, stderrFile, pidFile, httpMonitorURL);
+    app_ = App(args[1], args[2..$], workingDir, stdoutFile, stderrFile, pidFile, httpMonitorURL);
 
 	try {
         if (!app_.stdoutFileName.empty) {
