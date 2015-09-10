@@ -1,0 +1,6 @@
+{
+	"name": "bobby",
+	"description": "Simple process and HTTP availability monitor",
+	"license": "MIT",
+    "targetType": "executable",
+}
