@@ -245,7 +245,7 @@ int main(string[] args) {
 			"h|monitor-http-url", "URL to monitor for HTTP availability", &httpMonitorURL);
 
 		if (opts.helpWanted || (args.length < 2)) {
-			defaultGetoptPrinter("Usage: bobby [OPTIONS] executable\n", opts.options);
+			defaultGetoptPrinter("Usage: bobby [OPTIONS] executable [-- executable args] \n", opts.options);
 			return 1;
 		}
 	} catch (Exception e) {
