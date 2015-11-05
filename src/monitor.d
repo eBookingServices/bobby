@@ -85,8 +85,12 @@ struct HTTPMonitor {
 		changeState(State.Reset);
 	}
 
-	void start(string url) {
+	void start(string url, size_t intervalMS, size_t timeoutMS, size_t graceMS, size_t retries) {
 		url_ = URL.parse(url);
+		timeoutMS_ = timeoutMS;
+		intervalMS_ = intervalMS;
+		graceMS_  = graceMS;
+		retryCount_ = retries;
 
 		close();
 		try_ = 0;
@@ -247,6 +251,7 @@ struct HTTPMonitor {
 		if (received_.length <= 12)
 			return false;
 
+
 		if ((received_.ptr[0] != 'H') || (received_.ptr[1] != 'T') || (received_.ptr[2] != 'T') || (received_.ptr[3] != 'P') || (received_.ptr[4] != '/'))
 			return false;
 
@@ -265,11 +270,11 @@ struct HTTPMonitor {
 private:
 	URL url_;
 
-	size_t timeoutMS_ = 2500;
-	size_t intervalMS_ = 5000;
-	size_t graceMS_  = 25000;
-	size_t retryCount_ = 3;
-	size_t try_ = 0;
+	size_t timeoutMS_;
+	size_t intervalMS_;
+	size_t graceMS_;
+	size_t retryCount_;
+	size_t try_;
 
 	ubyte[] request_;
 	ubyte[] received_;

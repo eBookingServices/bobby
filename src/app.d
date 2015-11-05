@@ -28,6 +28,10 @@ struct App {
 	string pidFileName;
 
 	string httpMonitorURL;
+	size_t httpMonitorInterval;
+	size_t httpMonitorTimeout;
+	size_t httpMonitorGrace;
+	size_t httpMonitorRetries;
 
 	size_t flags;
 	size_t starts;
@@ -108,7 +112,7 @@ void killit(ref App app) {
 
 void startMonitors(ref App app) {
 	if (!app.httpMonitorURL.empty) {
-		app.httpMonitor.start(app.httpMonitorURL);
+		app.httpMonitor.start(app.httpMonitorURL, app.httpMonitorInterval, app.httpMonitorTimeout, app.httpMonitorGrace, app.httpMonitorRetries);
 		bark(format("HTTP monitor started for %s (%d) (%s)...", baseName(app.exe), app.pid.processID, app.httpMonitorURL));
 	}
 }
@@ -233,7 +237,10 @@ int main(string[] args) {
 	string stderrFile;
 	string workingDir;
 	string httpMonitorURL;
-
+	size_t httpMonitorInterval = 5000;
+	size_t httpMonitorTimeout = 2500;
+	size_t httpMonitorGrace = 25000;
+	size_t httpMonitorRetries = 3;
 
 	try {
 		auto opts = getopt(args,
@@ -242,7 +249,13 @@ int main(string[] args) {
 			"o|stdout-file", "File to use as stdout - can be the same as stderr", &stdoutFile,
 			"e|stderr-file", "File to use as stderr - can be the same as stdout", &stderrFile,
 			"w|working-dir", "Working directory", &workingDir,
-			"h|monitor-http-url", "URL to monitor for HTTP availability", &httpMonitorURL);
+			"u|monitor-http-url", "URL to monitor for HTTP availability", &httpMonitorURL,
+			"i|monitor-http-interval", "HTTP monitor request interval in milliseconds", &httpMonitorInterval,
+			"t|monitor-http-timeout", "HTTP monitor request timeout in milliseconds", &httpMonitorTimeout,
+			"g|monitor-http-grace", "HTTP monitor initial grace period during which failures are ignored", &httpMonitorGrace,
+			"r|monitor-http-retries", "HTTP monitor number of retries before considering a failure", &httpMonitorRetries
+		);
+
 
 		if (opts.helpWanted || (args.length < 2)) {
 			defaultGetoptPrinter("Usage: bobby [OPTIONS] executable [-- executable args] \n", opts.options);
@@ -253,7 +266,8 @@ int main(string[] args) {
 		return 1;
 	}
 
-    app_ = App(args[1], args[2..$], workingDir, stdoutFile, stderrFile, pidFile, httpMonitorURL);
+    app_ = App(args[1], args[2..$], workingDir, stdoutFile, stderrFile, pidFile,
+			httpMonitorURL, httpMonitorInterval, httpMonitorTimeout, httpMonitorGrace, httpMonitorRetries);
 
 	try {
         if (!app_.stdoutFileName.empty) {
