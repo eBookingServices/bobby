@@ -46,6 +46,17 @@ struct App {
 }
 
 
+void trigger(string cmd) {
+	if (!cmd.empty) {
+		try {
+			spawnShell(cmd);
+		} catch (Throwable e) {
+			bark(e.msg);
+		}
+	}
+}
+
+
 void bark(string error) {
 	std.stdio.stderr.write(format("[%s bark] %s\n", Clock.currTime.toSimpleString, error));
 }
@@ -96,6 +107,8 @@ void killit(ref App app) {
 
 			app.pid.wait;
 			app.pid.destroy;
+
+			trigger(onKill_);
 		} catch (Throwable e) {
 			bark(e.msg);
 		}
@@ -141,6 +154,7 @@ bool alive(ref App app) {
 
 	if (!app.httpMonitorURL.empty && (app.httpMonitor.state == HTTPMonitor.State.Failure)) {
 		bark("HTTP failed to get " ~ app.httpMonitorURL);
+		trigger(onHTTPFail_);
 		return false;
 	}
 
@@ -169,6 +183,8 @@ void spawn(ref App app) {
 
 	if (app.alive) {
 		bark(format("app started %s (%d) (x%d)...", baseName(app.exe), app.pid.processID, app.starts));
+		if (app.starts > 1)
+			trigger(onRestart_);
 
 		app.startMonitors;
 
@@ -221,8 +237,14 @@ version(Posix) {
 }
 
 
-__gshared App app_;
-__gshared string cwd_;
+__gshared  {
+	App app_;
+	string cwd_;
+
+	string onKill_;
+	string onRestart_;
+	string onHTTPFail_;
+}
 
 
 int main(string[] args) {
@@ -253,7 +275,10 @@ int main(string[] args) {
 			"i|monitor-http-interval", "HTTP monitor request interval in milliseconds", &httpMonitorInterval,
 			"t|monitor-http-timeout", "HTTP monitor request timeout in milliseconds", &httpMonitorTimeout,
 			"g|monitor-http-grace", "HTTP monitor initial grace period during which failures are ignored", &httpMonitorGrace,
-			"r|monitor-http-retries", "HTTP monitor number of retries before considering a failure", &httpMonitorRetries
+			"r|monitor-http-retries", "HTTP monitor number of retries before considering a failure", &httpMonitorRetries,
+			"k|on-kill", "Shell command executed upon process death", &onKill_,
+			"s|on-restart", "Shell command executed upon process restart", &onRestart_,
+			"x|on-http-fail", "Shell command executed upon http monitor failure", &onHTTPFail_
 		);
 
 
