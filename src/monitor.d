@@ -166,7 +166,9 @@ struct HTTPMonitor {
 					app.put("?");
 					app.put(url_.query);
 				}
-				app.put(" HTTP/1.1\r\n\r\n");
+				app.put(" HTTP/1.1\r\nHost: ");
+				app.put(url_.host);
+				app.put("\r\n\r\n");
 
 				request_ = cast(ubyte[])app.data.idup;
 			}
