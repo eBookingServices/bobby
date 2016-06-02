@@ -33,6 +33,14 @@ struct App {
 	size_t httpMonitorGrace;
 	size_t httpMonitorRetries;
 
+	size_t uptimeMax;
+	size_t uptimeMaxInitial;
+
+	string onKill;
+	string onRestart;
+	string onHTTPFail;
+	string onMaxUptime;
+
 	size_t flags;
 	size_t starts;
 	SysTime started;
@@ -108,7 +116,7 @@ void killit(ref App app) {
 			app.pid.wait;
 			app.pid.destroy;
 
-			trigger(onKill_);
+			trigger(app.onKill);
 		} catch (Throwable e) {
 			bark(e.msg);
 		}
@@ -153,8 +161,15 @@ bool alive(ref App app) {
 	}
 
 	if (!app.httpMonitorURL.empty && (app.httpMonitor.state == HTTPMonitor.State.Failure)) {
-		bark("HTTP failed to get " ~ app.httpMonitorURL);
-		trigger(onHTTPFail_);
+		bark(format("HTTP failed to get %s for %s (%s)", app.httpMonitorURL, baseName(app.exe), app.pid.processID));
+		trigger(app.onHTTPFail);
+		return false;
+	}
+
+	auto uptimeMax = ((app.starts == 1) && app.uptimeMaxInitial) ? app.uptimeMaxInitial : app.uptimeMax;
+	if (uptimeMax && ((Now - app.started) >= uptimeMax.msecs)) {
+		bark(format("restarting %s (%d) after max uptime of %d milliseconds reached...", baseName(app.exe), app.pid.processID, app.uptimeMax));
+		trigger(app.onMaxUptime);
 		return false;
 	}
 
@@ -184,7 +199,7 @@ void spawn(ref App app) {
 	if (app.alive) {
 		bark(format("app started %s (%d) (x%d)...", baseName(app.exe), app.pid.processID, app.starts));
 		if (app.starts > 1)
-			trigger(onRestart_);
+			trigger(app.onRestart);
 
 		app.startMonitors;
 
@@ -240,10 +255,6 @@ version(Posix) {
 __gshared  {
 	App app_;
 	string cwd_;
-
-	string onKill_;
-	string onRestart_;
-	string onHTTPFail_;
 }
 
 
@@ -264,6 +275,14 @@ int main(string[] args) {
 	size_t httpMonitorGrace = 25000;
 	size_t httpMonitorRetries = 3;
 
+	size_t uptimeMax = 0;
+	size_t uptimeMaxInitial = 0;
+
+	string onKill;
+	string onRestart;
+	string onHTTPFail;
+	string onMaxUptime;
+
 	try {
 		auto opts = getopt(args,
 			"f|force", "Force execution even if pid file is still present", &force,
@@ -271,14 +290,17 @@ int main(string[] args) {
 			"o|stdout-file", "File to use as stdout - can be the same as stderr", &stdoutFile,
 			"e|stderr-file", "File to use as stderr - can be the same as stdout", &stderrFile,
 			"w|working-dir", "Working directory", &workingDir,
+			"m|max-up-time", "Number of seconds after which to restart the app", &uptimeMax,
+			"j|max-up-time-initial", "Number of seconds after which to restart the app for the first time", &uptimeMaxInitial,
 			"u|monitor-http-url", "URL to monitor for HTTP availability", &httpMonitorURL,
 			"i|monitor-http-interval", "HTTP monitor request interval in milliseconds", &httpMonitorInterval,
 			"t|monitor-http-timeout", "HTTP monitor request timeout in milliseconds", &httpMonitorTimeout,
 			"g|monitor-http-grace", "HTTP monitor initial grace period during which failures are ignored", &httpMonitorGrace,
 			"r|monitor-http-retries", "HTTP monitor number of retries before considering a failure", &httpMonitorRetries,
-			"k|on-kill", "Shell command executed upon process death", &onKill_,
-			"s|on-restart", "Shell command executed upon process restart", &onRestart_,
-			"x|on-http-fail", "Shell command executed upon http monitor failure", &onHTTPFail_
+			"k|on-kill", "Shell command executed upon process death", &onKill,
+			"s|on-restart", "Shell command executed upon process restart", &onRestart,
+			"x|on-http-fail", "Shell command executed upon http monitor failure", &onHTTPFail,
+			"z|on-max-uptime", "Shell command executed upon restart due to max uptime", &onMaxUptime
 		);
 
 
@@ -291,57 +313,59 @@ int main(string[] args) {
 		return 1;
 	}
 
-    app_ = App(args[1], args[2..$], workingDir, stdoutFile, stderrFile, pidFile,
-			httpMonitorURL, httpMonitorInterval, httpMonitorTimeout, httpMonitorGrace, httpMonitorRetries);
+	app_ = App(args[1], args[2..$], workingDir, stdoutFile, stderrFile, pidFile,
+			httpMonitorURL, httpMonitorInterval, httpMonitorTimeout, httpMonitorGrace,
+			httpMonitorRetries, uptimeMax, uptimeMaxInitial, onKill, onRestart, onHTTPFail, onMaxUptime);
 
 	try {
-        if (!app_.stdoutFileName.empty) {
-            app_.stdout.open(app_.stdoutFileName, "a");
-        } else {
-            app_.stdout = std.stdio.stdout;
-        }
+		if (!app_.stdoutFileName.empty) {
+			app_.stdout.open(app_.stdoutFileName, "a");
+		} else {
+			app_.stdout = std.stdio.stdout;
+		}
 
-        if (!app_.stderrFileName.empty) {
-            if (app_.stderrFileName == app_.stdoutFileName) {
-                app_.stderr = app_.stdout;
-            } else {
-                app_.stderr.open(app_.stderrFileName, "a");
-            }
-        } else {
-            app_.stderr = std.stdio.stderr;
-        }
+		if (!app_.stderrFileName.empty) {
+			if (app_.stderrFileName == app_.stdoutFileName) {
+				app_.stderr = app_.stdout;
+			} else {
+				app_.stderr.open(app_.stderrFileName, "a");
+			}
+		} else {
+			app_.stderr = std.stdio.stderr;
+		}
 
-        if (!app_.pidFileName.empty && exists(app_.pidFileName)) {
-            if (!force) {
-                bark(format("%s exists - the process may be running!\nRemove it manually or use --force to ignore it.", app_.pidFileName));
-                return 1;
-            }
+		if (!app_.pidFileName.empty && exists(app_.pidFileName)) {
+			if (!force) {
+				bark(format("%s exists - the process may be running!\nRemove it manually or use --force to ignore it.", app_.pidFileName));
+				return 1;
+			}
 
-            bark(format("deleting %s...", app_.pidFileName));
-            remove(app_.pidFileName);
-        }
+			bark(format("deleting %s...", app_.pidFileName));
+			remove(app_.pidFileName);
+		}
 	} catch (Throwable e) {
 		bark(e.msg);
 		return 1;
 	}
 
 	while (true) {
-        if (!app_.alive) {
-            if (!app_.starts) {
-                app_.spawn;
-            } else {
-                if ((Now - app_.started) > app_.delay.seconds) {
-                    app_.killit;
-                    app_.spawn;
-                    app_.delay = min(max(1, app_.delay) * 2, 60);
-                }
-            }
-        } else {
-            if ((Clock.currTime - app_.started) > 2.seconds)
-                app_.delay = 0;
+		auto now = Now;
+		if (!app_.alive) {
+			if (!app_.starts) {
+				app_.spawn;
+			} else {
+				if ((now - app_.started) > app_.delay.seconds) {
+					app_.killit;
+					app_.spawn;
+					app_.delay = min(max(1, app_.delay) * 2, 60);
+				}
+			}
+		} else {
+			if ((now - app_.started) > 2.seconds)
+				app_.delay = 0;
 
-            app_.updateMonitors;
-        }
+			app_.updateMonitors;
+		}
 
 		Thread.sleep(100.msecs);
 	}

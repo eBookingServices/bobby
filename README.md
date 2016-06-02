@@ -13,11 +13,11 @@ Simple process and HTTP availability monitor
 	t|monitor-http-timeout - HTTP monitor request timeout in milliseconds
 	g|monitor-http-grace - HTTP monitor initial grace period during which failures are ignored
 	r|monitor-http-retries - HTTP monitor number of retries before considering a failure
+	m|max-up-time - Number of milliseconds after which to restart the app
+	j|max-up-time-initial - Number of milliseconds after which to restart the app for the first time
+	k|on-kill - Shell command executed upon process death
+	s|on-restart - Shell command executed upon process restart
+	x|on-http-fail - Shell command executed upon http monitor failure
 
 #### Example Usage
 	./bobby ./www -f -o "/log/www.log" -e "/log/www.log" -p "/run/www.pid" -h "http://mydomain.com/" -- --uid=www --gid=www --port=80 --access-log="/log/access_www.log" >> "/log/bobby_www.log" 2>&1
-
-
-#### TODO
-- Add support for event notifications (alert email, post url, run script)
-- More configuration for HTTP monitor - grace period length, number or retries, timeout, ...
