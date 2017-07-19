@@ -41,6 +41,10 @@ struct App {
 	string onHTTPFail;
 	string onMaxUptime;
 
+	string monitorFileModification;
+	size_t monitorFileModificationPeriod;
+	string onNoMonitorFileModification;
+
 	size_t flags;
 	size_t starts;
 	SysTime started;
@@ -173,6 +177,18 @@ bool alive(ref App app) {
 		return false;
 	}
 
+	if (!app.monitorFileModification.empty && (Now - app.started) > app.monitorFileModificationPeriod.seconds) {
+		SysTime accessTime;
+		SysTime modificationTime;
+		getTimes(app.monitorFileModification, accessTime, modificationTime);
+		if((Now - modificationTime) > app.monitorFileModificationPeriod.seconds)
+		{
+			bark("Restarting %s (%s) : Monitored file '%s' was not modified within the expected period (%d seconds)".format(baseName(app.exe), app.pid.processID, app.monitorFileModification, app.monitorFileModificationPeriod));
+			trigger(app.onNoMonitorFileModification);
+			return false;			
+		}
+	}
+
 	return true;
 }
 
@@ -283,6 +299,10 @@ int main(string[] args) {
 	string onHTTPFail;
 	string onMaxUptime;
 
+	string monitorFileModification;
+	size_t monitorFileModificationPeriod = 300;
+	string onNoMonitorFileModification;
+
 	try {
 		auto opts = getopt(args,
 			"f|force", "Force execution even if pid file is still present", &force,
@@ -300,7 +320,10 @@ int main(string[] args) {
 			"k|on-kill", "Shell command executed upon process death", &onKill,
 			"s|on-restart", "Shell command executed upon process restart", &onRestart,
 			"x|on-http-fail", "Shell command executed upon http monitor failure", &onHTTPFail,
-			"z|on-max-uptime", "Shell command executed upon restart due to max uptime", &onMaxUptime
+			"z|on-max-uptime", "Shell command executed upon restart due to max uptime", &onMaxUptime,
+			"mf|monitor-file", "File to monitor for periodical modifications ", &monitorFileModification,
+			"mfp|monitor-file-period", "Expected time (in seconds) for file modifications", &monitorFileModificationPeriod,
+			"mff|on-no-monitor-file-fail", "Shell command executed when the monitored file has not been modified", &onNoMonitorFileModification,
 		);
 
 
@@ -315,7 +338,9 @@ int main(string[] args) {
 
 	app_ = App(args[1], args[2..$], workingDir, stdoutFile, stderrFile, pidFile,
 			httpMonitorURL, httpMonitorInterval, httpMonitorTimeout, httpMonitorGrace,
-			httpMonitorRetries, uptimeMax, uptimeMaxInitial, onKill, onRestart, onHTTPFail, onMaxUptime);
+			httpMonitorRetries, uptimeMax, uptimeMaxInitial, onKill, onRestart, onHTTPFail, onMaxUptime,
+			monitorFileModification, monitorFileModificationPeriod, onNoMonitorFileModification
+		);
 
 	try {
 		if (!app_.stdoutFileName.empty) {
