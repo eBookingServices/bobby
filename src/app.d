@@ -13,6 +13,7 @@ import std.process;
 import std.range;
 import std.string;
 import std.stdio;
+import std.random;
 
 
 import monitor;
@@ -35,6 +36,8 @@ struct App {
 
 	size_t uptimeMax;
 	size_t uptimeMaxInitial;
+	size_t uptimeRandomRange;
+	size_t uptimeMaxRandom;
 
 	string onKill;
 	string onRestart;
@@ -170,7 +173,7 @@ bool alive(ref App app) {
 		return false;
 	}
 
-	auto uptimeMax = ((app.starts == 1) && app.uptimeMaxInitial) ? app.uptimeMaxInitial : app.uptimeMax;
+	auto uptimeMax = ((app.starts == 1) && app.uptimeMaxInitial) ? app.uptimeMaxInitial : app.uptimeMaxRandom;
 	if (uptimeMax && ((Now - app.started) >= uptimeMax.msecs)) {
 		bark(format("restarting %s (%d) after max uptime of %d milliseconds reached...", baseName(app.exe), app.pid.processID, app.uptimeMax));
 		trigger(app.onMaxUptime);
@@ -292,6 +295,7 @@ int main(string[] args) {
 	size_t httpMonitorRetries = 3;
 
 	size_t uptimeMax = 0;
+	size_t uptimeMaxRandRng = 0;
 	size_t uptimeMaxInitial = 0;
 
 	string onKill;
@@ -311,6 +315,7 @@ int main(string[] args) {
 			"e|stderr-file", "File to use as stderr - can be the same as stdout", &stderrFile,
 			"w|working-dir", "Working directory", &workingDir,
 			"m|max-up-time", "Number of seconds after which to restart the app", &uptimeMax,
+			"mrr|max-up-time-random-range", "Number of seconds between zero and number to add to max-up-time", &uptimeMaxRandRng,
 			"j|max-up-time-initial", "Number of seconds after which to restart the app for the first time", &uptimeMaxInitial,
 			"u|monitor-http-url", "URL to monitor for HTTP availability", &httpMonitorURL,
 			"i|monitor-http-interval", "HTTP monitor request interval in milliseconds", &httpMonitorInterval,
@@ -338,7 +343,7 @@ int main(string[] args) {
 
 	app_ = App(args[1], args[2..$], workingDir, stdoutFile, stderrFile, pidFile,
 			httpMonitorURL, httpMonitorInterval, httpMonitorTimeout, httpMonitorGrace,
-			httpMonitorRetries, uptimeMax, uptimeMaxInitial, onKill, onRestart, onHTTPFail, onMaxUptime,
+			httpMonitorRetries, uptimeMax, uptimeMaxRandRng, uptimeMax + uniform( 0, uptimeMaxRandRng ),uptimeMaxInitial, onKill, onRestart, onHTTPFail, onMaxUptime,
 			monitorFileModification, monitorFileModificationPeriod, onNoMonitorFileModification
 		);
 
@@ -385,6 +390,7 @@ int main(string[] args) {
 					app_.delay = min(max(1, app_.delay) * 2, 60);
 				}
 			}
+			app_.uptimeMaxRandom = app_.uptimeMax + uniform( 0, app_.uptimeMaxRandRng );
 		} else {
 			if ((now - app_.started) > 2.seconds)
 				app_.delay = 0;
