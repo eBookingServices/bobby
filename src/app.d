@@ -175,7 +175,7 @@ bool alive(ref App app) {
 
 	auto uptimeMax = ((app.starts == 1) && app.uptimeMaxInitial) ? app.uptimeMaxInitial : app.uptimeMaxRandom;
 	if (uptimeMax && ((Now - app.started) >= uptimeMax.msecs)) {
-		bark(format("restarting %s (%d) after max uptime of %d milliseconds reached...", baseName(app.exe), app.pid.processID, app.uptimeMax));
+		bark(format("restarting %s (%d) after max uptime of %d milliseconds reached...", baseName(app.exe), app.pid.processID, app.uptimeMaxRandom));
 		trigger(app.onMaxUptime);
 		return false;
 	}
