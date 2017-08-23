@@ -314,9 +314,9 @@ int main(string[] args) {
 			"o|stdout-file", "File to use as stdout - can be the same as stderr", &stdoutFile,
 			"e|stderr-file", "File to use as stderr - can be the same as stdout", &stderrFile,
 			"w|working-dir", "Working directory", &workingDir,
-			"m|max-up-time", "Number of seconds after which to restart the app", &uptimeMax,
-			"mrr|max-up-time-random-range", "Number of seconds between zero and number to add to max-up-time", &uptimeMaxRandRng,
-			"j|max-up-time-initial", "Number of seconds after which to restart the app for the first time", &uptimeMaxInitial,
+			"m|max-up-time", "Number of milliseconds after which to restart the app", &uptimeMax,
+			"y|max-up-time-random-range", "Number of milliseconds between zero and number to add to max-up-time", &uptimeMaxRandRng,
+			"j|max-up-time-initial", "Number of milliseconds after which to restart the app for the first time", &uptimeMaxInitial,
 			"u|monitor-http-url", "URL to monitor for HTTP availability", &httpMonitorURL,
 			"i|monitor-http-interval", "HTTP monitor request interval in milliseconds", &httpMonitorInterval,
 			"t|monitor-http-timeout", "HTTP monitor request timeout in milliseconds", &httpMonitorTimeout,
@@ -326,9 +326,9 @@ int main(string[] args) {
 			"s|on-restart", "Shell command executed upon process restart", &onRestart,
 			"x|on-http-fail", "Shell command executed upon http monitor failure", &onHTTPFail,
 			"z|on-max-uptime", "Shell command executed upon restart due to max uptime", &onMaxUptime,
-			"mf|monitor-file", "File to monitor for periodical modifications ", &monitorFileModification,
-			"mfp|monitor-file-period", "Expected time (in seconds) for file modifications", &monitorFileModificationPeriod,
-			"mff|on-no-monitor-file-fail", "Shell command executed when the monitored file has not been modified", &onNoMonitorFileModification,
+			"monitor-file", "File to monitor for periodical modifications ", &monitorFileModification,
+			"monitor-file-period", "Expected time (in seconds) for file modifications", &monitorFileModificationPeriod,
+			"on-no-monitor-file-fail", "Shell command executed when the monitored file has not been modified", &onNoMonitorFileModification,
 		);
 
 
@@ -343,7 +343,9 @@ int main(string[] args) {
 
 	app_ = App(args[1], args[2..$], workingDir, stdoutFile, stderrFile, pidFile,
 			httpMonitorURL, httpMonitorInterval, httpMonitorTimeout, httpMonitorGrace,
-			httpMonitorRetries, uptimeMax, uptimeMaxRandRng, uptimeMax + uniform( 0, uptimeMaxRandRng ),uptimeMaxInitial, onKill, onRestart, onHTTPFail, onMaxUptime,
+			httpMonitorRetries, uptimeMax, uptimeMaxRandRng, 
+			uptimeMax + (uptimeMaxRandRng > 0 ? uniform( 0, uptimeMaxRandRng ) : 0),
+			uptimeMaxInitial, onKill, onRestart, onHTTPFail, onMaxUptime,
 			monitorFileModification, monitorFileModificationPeriod, onNoMonitorFileModification
 		);
 
@@ -390,7 +392,7 @@ int main(string[] args) {
 					app_.delay = min(max(1, app_.delay) * 2, 60);
 				}
 			}
-			app_.uptimeMaxRandom = app_.uptimeMax + uniform( 0, app_.uptimeMaxRandRng );
+			app_.uptimeMaxRandom = app_.uptimeMax + (uptimeMaxRandRng > 0 ? uniform( 0, app_.uptimeMaxRandRng) : 0);
 		} else {
 			if ((now - app_.started) > 2.seconds)
 				app_.delay = 0;
