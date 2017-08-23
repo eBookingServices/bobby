@@ -36,7 +36,7 @@ struct App {
 
 	size_t uptimeMax;
 	size_t uptimeMaxInitial;
-	size_t uptimeRandomRange;
+	size_t uptimeMaxRandRng;
 	size_t uptimeMaxRandom;
 
 	string onKill;
