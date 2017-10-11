@@ -188,7 +188,7 @@ bool alive(ref App app) {
 		{
 			bark("Restarting %s (%s) : Monitored file '%s' was not modified within the expected period (%d seconds)".format(baseName(app.exe), app.pid.processID, app.monitorFileModification, app.monitorFileModificationPeriod));
 			trigger(app.onNoMonitorFileModification);
-			return false;			
+			return false;
 		}
 	}
 
@@ -326,9 +326,9 @@ int main(string[] args) {
 			"s|on-restart", "Shell command executed upon process restart", &onRestart,
 			"x|on-http-fail", "Shell command executed upon http monitor failure", &onHTTPFail,
 			"z|on-max-uptime", "Shell command executed upon restart due to max uptime", &onMaxUptime,
-			"monitor-file", "File to monitor for periodical modifications ", &monitorFileModification,
-			"monitor-file-period", "Expected time (in seconds) for file modifications", &monitorFileModificationPeriod,
-			"on-no-monitor-file-fail", "Shell command executed when the monitored file has not been modified", &onNoMonitorFileModification,
+			"mf|monitor-file", "File to monitor for periodical modifications ", &monitorFileModification,
+			"mfp|monitor-file-period", "Expected time (in seconds) for file modifications", &monitorFileModificationPeriod,
+			"mff|on-no-monitor-file-fail", "Shell command executed when the monitored file has not been modified", &onNoMonitorFileModification,
 		);
 
 
@@ -343,7 +343,7 @@ int main(string[] args) {
 
 	app_ = App(args[1], args[2..$], workingDir, stdoutFile, stderrFile, pidFile,
 			httpMonitorURL, httpMonitorInterval, httpMonitorTimeout, httpMonitorGrace,
-			httpMonitorRetries, uptimeMax, uptimeMaxRandRng, 
+			httpMonitorRetries, uptimeMax, uptimeMaxRandRng,
 			uptimeMax + (uptimeMaxRandRng > 0 ? uniform( 0, uptimeMaxRandRng ) : 0),
 			uptimeMaxInitial, onKill, onRestart, onHTTPFail, onMaxUptime,
 			monitorFileModification, monitorFileModificationPeriod, onNoMonitorFileModification
